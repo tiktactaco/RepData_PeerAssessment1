@@ -1,25 +1,68 @@
 ---
 title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+author: "cs"
+date: "12/6/2020"
+output: html_document
 ---
 
+## Loading and Preprocessing the Data
 
-## Loading and preprocessing the data
+First, we'll load the Tidyverse library to help with both data processing and plotting. Then we'll create a temporary file, download and unzip the data, and use the read.csv function to load it into a dataframe.
 
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
 
+temp <- tempfile()
+fileurl <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+download.file(fileurl, temp)
+df <- read.csv(unz(temp, "activity.csv"))
+unlink(temp)
+summary(df)
+head(df)
+```
 
-## What is mean total number of steps taken per day?
+##What is mean total number of steps taken per day?
 
+I've created a grouped dataframe by date based on our original data and then used the summarise function to total the steps per day. The histogram was created with ggplot and based off of the new dataframe.
 
+```{r}
+df1 <- df %>% group_by(date) %>% summarise(total=sum(steps))
+ggplot(df1, aes(total)) + geom_histogram() + 
+  labs(title = "Distribution of Total Steps", x="Total Steps")
 
-## What is the average daily activity pattern?
+mean_steps <- mean(df1$total, na.rm = TRUE)
+median_steps <- median(df1$total, na.rm = TRUE)
+summary(df1)
+```
 
+##What is the average daily activity pattern?
 
+```{r}
+df2 <- df %>% group_by(interval) %>% summarise(avg=mean(steps, na.rm = TRUE))
+ggplot(df2, aes(interval, avg)) + geom_line() + 
+  labs(title="Average Steps per Five Minute Interval Over a Day", 
+  x="Five Minute Interval", y="Average Steps")
 
-## Imputing missing values
+max_interval_row <- df2[which.max(df2$avg),]
 
+total_nas <- sum(is.na(df$steps))
+```
 
+##Imputing missing values
 
-## Are there differences in activity patterns between weekdays and weekends?
+```{r}
+
+df <- df %>% mutate(impute_steps = ifelse(is.na(steps), df2$avg[match(interval, df2$interval)], steps))
+```
+
+##Are there differences in activity patterns between weekdays and weekends?
+
+```{r}
+weekly <- function(x) {
+  ifelse(weekdays(x) %in% c("Saturday", "Sunday"), "weekend", "weekday")
+}
+
+df <- df %>% mutate(day_type = weekly(df$date))
+```
+
